@@ -85,5 +85,7 @@ namespace Domain
                 EntityName, ".msl;provider=System.Data.SqlClient;provider connection string='",
                 DBsoure, "");
         }
+
+        #endregion
     }
 }
