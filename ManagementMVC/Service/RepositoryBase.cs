@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Data;
+using System.Data.Common;
 using System.Data.Entity;
 using System.Data.Entity.Infrastructure;
 using System.Linq.Expressions;
@@ -332,6 +333,12 @@ namespace Service
             return this.Context.SaveChanges();
         }
 
+        /// <summary>
+        /// 批量删除数据，自定义模型
+        /// </summary>
+        /// <typeparam name="T1"></typeparam>
+        /// <param name="t"></param>
+        /// <returns></returns>
         public virtual int DeleteList<T1>(List<T1> t) where T1 : class
         {
             try
@@ -342,6 +349,51 @@ namespace Service
                 {
                     this.Context.Set<T1>().Remove(item);
                 }
+
+                return this.Context.SaveChanges();
+            }
+            catch (Exception e)
+            {
+                throw e;
+            }
+        }
+        #endregion
+
+        #region 存储过程操作
+        /// <summary>
+        /// 执行返回影响行数的存储过程
+        /// </summary>
+        /// <param name="procname">过程名称</param>
+        /// <param name="parameter">参数对象</param>
+        /// <returns></returns>
+        public virtual object ExecuteProc(string procname, params DbParameter[] parameter)
+        {
+            try
+            {
+                return ExecuteSqlCommand(procname, parameter);
+            }
+            catch (Exception e)
+            {
+                throw e;
+            }
+        }
+
+        /// <summary>
+        /// 执行返回结果集的存储过程
+        /// </summary>
+        /// <param name="proname">过程名称</param>
+        /// <param name="parameter">参数对象</param>
+        /// <param name="parameter">参数对象</param>
+        /// <returns></returns>
+        public virtual object ExecuteQueryProc(string proname, params DbParameter[] parameter)
+        {
+            try
+            {
+                return this.Context.Database.SqlFunctionForDynamic(proname, parameter);
+            }
+            catch (Exception e)
+            {
+                throw e;
             }
         }
         #endregion
