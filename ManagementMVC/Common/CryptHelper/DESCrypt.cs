@@ -46,5 +46,204 @@ namespace Common.CryptHelper
             get { return m_message;}
             set { m_message = value; }
         }
+
+        private bool m_containKey;
+
+        /// <summary>
+        /// True：密文中包含密钥
+        /// False：密文中不包含密钥
+        /// </summary>
+        public bool ContainKey
+        {
+            get { return m_containKey;}
+            set { m_containKey = value; }
+        }
+
+        public DESCrypt()
+        {
+            m_aesCryptoServiceProvider = new AesCryptoServiceProvider();
+            m_containKey = true;
+            m_message = string.Empty;
+        }
+
+        public DESCrypt(bool containKey):this()
+        {
+            m_containKey = containKey;
+        }
+
+        private string Encrypt(string s_crypto, byte[] key)
+        {
+            string s_encryped = string.Empty;
+            byte[] crypto, encrypted;
+            ICryptoTransform ct;
+
+            try
+            {
+                crypto = string2Byte(s_crypto);
+                m_aesCryptoServiceProvider.Key = key;
+                m_aesCryptoServiceProvider.IV = _IV;
+                ct = m_aesCryptoServiceProvider.CreateEncryptor();
+                encrypted = ct.TransformFinalBlock(crypto, 0, crypto.Length);
+
+                if (m_containKey)
+                {
+                    s_encryped += byte2HexString(key);
+                }
+
+                s_encryped += byte2HexString(encrypted);
+                return s_encryped;
+            }
+            catch (Exception e)
+            {
+                m_message = e.ToString();
+                return RET_ERROR;
+            }
+        }
+
+        /// <summary>
+        /// 指定密钥对明文进行AES加密
+        /// </summary>
+        /// <param name="s_crypto">明文</param>
+        /// <param name="s_key">加密密钥</param>
+        /// <returns></returns>
+        public string Encrypt(string s_crypto, string s_key)
+        {
+            byte[] key = new byte[CRYPTO_KEY_LENGTH];
+
+            byte[] temp = string2Byte(s_key);
+            if (temp.Length > key.Length)
+            {
+                m_message = "Key too long,need less than 32 Bytes key.";
+                return RET_ERROR;
+            }
+
+            key = string2Byte(s_key.PadRight(key.Length));
+            return Encrypt(s_crypto,key);
+        }
+
+        /// <summary>
+        /// 动态生成密钥，并对明文进行AES加密
+        /// </summary>
+        /// <param name="s_crypto">明文</param>
+        /// <returns></returns>
+        public string Encrypt(string s_crypto)
+        {
+            byte[] key = new byte[CRYPTO_KEY_LENGTH];
+
+            m_aesCryptoServiceProvider.GenerateKey();
+            key = m_aesCryptoServiceProvider.Key;
+            return Encrypt(s_crypto,key);
+        }
+
+        private string Decrypt(string s_encrypted, byte[] key)
+        {
+            string s_decrypted = string.Empty;
+            byte[] encrypted, decrypted;
+            ICryptoTransform ct;
+
+            try
+            {
+                encrypted = hexString2Byte(s_encrypted);
+                m_aesCryptoServiceProvider.Key = key;
+                m_aesCryptoServiceProvider.IV = _IV;
+                ct = m_aesCryptoServiceProvider.CreateDecryptor();
+                decrypted = ct.TransformFinalBlock(encrypted, 0, encrypted.Length);
+                s_decrypted += byte2String(decrypted);
+                return s_decrypted;
+            }
+            catch (Exception e)
+            {
+                m_message = e.ToString();
+                m_message = "Decrypt fail.";
+                return RET_ERROR;
+            }
+        }
+
+        /// <summary>
+        /// 从密文中解析出密钥，并对密文进行解密
+        /// </summary>
+        /// <param name="s_encrypted">密文</param>
+        /// <returns></returns>
+        public string Decrypt(string s_encrypted)
+        {
+            string s_key = string.Empty;
+            byte[] key = new byte[CRYPTO_KEY_LENGTH];
+
+            if (s_encrypted.Length <= CRYPTO_KEY_LENGTH*2)
+            {
+                m_message = "Encrypted string invalid.";
+                return RET_ERROR;
+            }
+
+            if (m_containKey)
+            {
+                s_key = s_encrypted.Substring(0, CRYPTO_KEY_LENGTH*2);
+                s_encrypted = s_encrypted.Substring(CRYPTO_KEY_LENGTH);
+            }
+
+            key = hexString2Byte(s_key);
+            return Decrypt(s_encrypted,key);
+        }
+
+        /// <summary>
+        /// 指定密钥，并对密文进行解密
+        /// </summary>
+        /// <param name="s_encrypted">密文</param>
+        /// <param name="s_key">密钥</param>
+        /// <returns></returns>
+        public string Decrypt(string s_encrypted, string s_key)
+        {
+            byte[] key = new byte[CRYPTO_KEY_LENGTH];
+
+            byte[] temp = string2Byte(s_key);
+            if (temp.Length > key.Length)
+            {
+                m_message = "Key invalid.too long,need less than 32 Bytes";
+                return RET_ERROR;
+            }
+
+            key = string2Byte(s_key.PadRight(key.Length));
+            if (m_containKey)
+            {
+                s_encrypted = s_encrypted.Substring(CRYPTO_KEY_LENGTH*2);
+            }
+
+            return Decrypt(s_encrypted,key);
+        }
+
+        #region 私有方法
+        private string byte2HexString(byte[] bytes)
+        {
+            StringBuilder sb = new StringBuilder();
+            foreach (var b in bytes)
+            {
+                sb.AppendFormat("{0:X2}", b);
+            }
+
+            return sb.ToString();
+        }
+
+        private string byte2String(byte[] decrypted)
+        {
+            return Encoding.UTF8.GetString(decrypted);
+        }
+
+        private byte[] hexString2Byte(string s_encrypted)
+        {
+            int len = s_encrypted.Length/2;
+            byte[] bytes = new byte[len];
+            for (int i = 0; i < len; i++)
+            {
+                bytes[i] = (byte) (Convert.ToInt32(s_encrypted.Substring(i*2, 2), 16));
+            }
+
+            return bytes;
+        }
+
+        private byte[] string2Byte(string str)
+        {
+            return Encoding.UTF8.GetBytes(str);
+        }
+        #endregion
     }
 }
